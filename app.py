@@ -219,23 +219,20 @@ def main():
                 # SHAP值处理
                 sv = explainer.shap_values(X)
                 if isinstance(sv, list) and len(sv) == 2:
-                    sv_final = sv[1][0]
-                    sv_class0 = sv[0][0]
+                    shv = np.array(sv[1][0], dtype=float).flatten()
                 else:
-                    sv_final = sv[0]
-                    sv_class0 = None
+                    shv = np.array(sv[0], dtype=float).flatten()
 
                 # ---- DEBUG: 验证 SHAP 方向 ----
                 from scipy.special import logit
                 pred_logodds = logit(max(min(p1, 0.9999), 0.0001))
-                shap_logodds = float(base_value) + float(np.sum(sv_final))
+                shap_logodds = float(base_value) + float(np.sum(shv))
                 st.caption(f"🔍 pred log-odds: {pred_logodds:.4f} | SHAP log-odds: {shap_logodds:.4f} | base: {base_value:.4f}")
 
                 # 打印每个特征的 SHAP 值
-                shp_lines = []
-                for i, f in enumerate(selected_features):
-                    shp_lines.append(f"{f}={X.iloc[0][i]} → SHAP={sv_final[i]:+.4f}")
-                st.caption(" | ".join(shp_lines))
+                x_vals = X.to_numpy()[0]
+                parts = [f"{selected_features[i]}={int(x_vals[i])} SHAP={shv[i]:+.4f}" for i in range(len(selected_features))]
+                st.caption(" | ".join(parts))
 
                 out0 = FEATURE_VALUE_MAPPING['Outcome'][0]
                 out1 = FEATURE_VALUE_MAPPING['Outcome'][1]
@@ -265,7 +262,7 @@ def main():
                 st.markdown("---")
                 st.subheader("🌀 SHAP Force Plot")
 
-                force_img = generate_force_plot(base_value, sv_final, X, pred)
+                force_img = generate_force_plot(base_value, shv, X, pred)
                 st.image(force_img, use_container_width=True)
 
                 st.markdown(f"""
@@ -278,7 +275,7 @@ def main():
                 st.markdown("---")
                 st.subheader("📊 Feature Importance (SHAP)")
 
-                imp_img = generate_importance_plot(sv_final)
+                imp_img = generate_importance_plot(shv)
                 st.image(imp_img, use_container_width=True)
 
 if __name__ == "__main__":
