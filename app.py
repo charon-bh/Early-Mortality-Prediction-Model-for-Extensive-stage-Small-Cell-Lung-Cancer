@@ -234,7 +234,7 @@ def main():
                 # 打印每个特征的 SHAP 值
                 shp_lines = []
                 for i, f in enumerate(selected_features):
-                    shp_lines.append(f"{f}={input_df.iloc[0][i]} → SHAP={sv_final[i]:+.4f}")
+                    shp_lines.append(f"{f}={X.iloc[0][i]} → SHAP={sv_final[i]:+.4f}")
                 st.caption(" | ".join(shp_lines))
 
                 out0 = FEATURE_VALUE_MAPPING['Outcome'][0]
