@@ -27,15 +27,15 @@ st.set_page_config(
     layout="wide"
 )
 
-# ===================== 特征列表 =====================
+# ===================== 特征列表（顺序必须与模型训练时一致） =====================
 CATEGORICAL_FEATURES = [
     'Sex',
     'Income_Group',
     'T_Stage',
-    'Radiation',
-    'Chemotherapy',
     'Brain_metastasis',
     'Liver_metastasis',
+    'Radiation',
+    'Chemotherapy',
     'Lung_metastasis'
 ]
 CONTINUOUS_FEATURES = ['Age_Group']
@@ -70,7 +70,6 @@ def get_feature_text(feat_name, feat_value):
     mapping = FEATURE_VALUE_MAPPING.get(feat_name, {})
     return mapping.get(feat_value, str(feat_value))
 
-# 分类特征选项
 FEATURE_OPTIONS = {}
 for feat in CATEGORICAL_FEATURES:
     sorted_items = sorted(FEATURE_VALUE_MAPPING[feat].items(), key=lambda x: x[0])
@@ -87,8 +86,6 @@ def init_model():
     try:
         model_dict = joblib.load(MODEL_PATH)
         model = model_dict['model']
-
-
         optimal_threshold = model_dict['optimal_threshold']
 
         train_df = pd.read_csv(TRAIN_DATA_PATH, encoding="GBK")
@@ -113,7 +110,7 @@ def init_model():
         st.error(f"❌ Load failed: {str(e)}")
         return None, None, None, None
 
-# ===================== 原生 SHAP 力图 =====================
+# ===================== SHAP 力图 =====================
 def generate_force_plot(base_value, shap_values, input_df, pred_label):
     plt.figure(figsize=(16, 5))
     shap.force_plot(
@@ -128,7 +125,6 @@ def generate_force_plot(base_value, shap_values, input_df, pred_label):
     plt.title(f'SHAP Force Plot - Pred={pred_label}', fontsize=12, pad=10)
     ax = plt.gca()
 
-    # f(x) 加粗 + 位置修复
     for text in ax.texts:
         if "f(x)" in text.get_text():
             text.set_fontweight("bold")
@@ -185,7 +181,6 @@ def main():
 
     col_input, col_result = st.columns([1, 2])
 
-    # ========== 左侧输入 ==========
     with col_input:
         st.subheader("🔍 Input Features")
         feature_values = []
@@ -197,13 +192,11 @@ def main():
             sel_val = vals[opts.index(sel_text)]
             feature_values.append(sel_val)
 
-        # 连续特征：Age_Group slider
         age_val = st.slider("Age_Group", 20, 85, 50, key="input_Age")
         feature_values.append(age_val)
 
         run_btn = st.button("🚀 Predict & Generate SHAP Plot", type="primary")
 
-    # ========== 右侧结果 ==========
     with col_result:
         st.subheader("📈 Prediction & SHAP Explanation")
 
@@ -216,29 +209,16 @@ def main():
                 p0, p1 = prob[0], prob[1]
                 pred = 1 if p1 >= threshold else 0
 
-                # SHAP值处理
                 sv = explainer.shap_values(X)
                 if isinstance(sv, list) and len(sv) == 2:
                     shv = np.array(sv[1][0], dtype=float).flatten()
                 else:
                     shv = np.array(sv[0], dtype=float).flatten()
 
-                # ---- DEBUG: 验证 SHAP 方向 ----
-                from scipy.special import logit
-                pred_logodds = logit(max(min(p1, 0.9999), 0.0001))
-                shap_logodds = float(base_value) + float(np.sum(shv))
-                st.caption(f"🔍 pred log-odds: {pred_logodds:.4f} | SHAP log-odds: {shap_logodds:.4f} | base: {base_value:.4f}")
-
-                # 打印每个特征的 SHAP 值
-                x_vals = X.to_numpy()[0]
-                parts = [f"{selected_features[i]}={int(x_vals[i])} SHAP={shv[i]:+.4f}" for i in range(len(selected_features))]
-                st.caption(" | ".join(parts))
-
                 out0 = FEATURE_VALUE_MAPPING['Outcome'][0]
                 out1 = FEATURE_VALUE_MAPPING['Outcome'][1]
                 pred_label = FEATURE_VALUE_MAPPING['Outcome'][pred]
 
-                # 预测结果
                 st.markdown(f"""
                 <div style="background:#f8f9fa; padding:20px; border-radius:12px; margin-bottom:20px;">
                     <h4 style="margin:0 0 12px 0;">Optimal Threshold: {threshold:.3f}</h4>
@@ -258,10 +238,9 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
-                # ===================== 原生 SHAP 力图 =====================
+                # ---- SHAP 力图 ----
                 st.markdown("---")
                 st.subheader("🌀 SHAP Force Plot")
-
                 force_img = generate_force_plot(base_value, shv, X, pred)
                 st.image(force_img, use_container_width=True)
 
@@ -271,10 +250,9 @@ def main():
                 - **Blue features**: Decrease the risk of {out1}
                 """)
 
-                # ===================== 特征重要性排序图 =====================
+                # ---- 特征重要性排序图 ----
                 st.markdown("---")
                 st.subheader("📊 Feature Importance (SHAP)")
-
                 imp_img = generate_importance_plot(shv)
                 st.image(imp_img, use_container_width=True)
 
